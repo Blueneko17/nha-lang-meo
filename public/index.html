@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nhà Làng Mèo — phòng chung duy nhất — client mẫu test đồng bộ</title>
+<style>
+  body{font-family:system-ui,sans-serif;margin:16px;max-width:900px}
+  fieldset{margin-bottom:12px} input,button{padding:6px 10px;margin:2px}
+  #users li .seat{color:#666} .seat-btn{margin:2px}
+  #chat{height:160px;overflow-y:auto;border:1px solid #ccc;padding:8px}
+  .me{font-weight:bold}
+</style>
+</head>
+<body>
+<h1>🐱 Nhà Làng Mèo — phòng chung duy nhất — client mẫu (chỉ để test đồng bộ)</h1>
+<p>Chỉ có <b>một nhà chung duy nhất</b> cho tất cả mọi người — không có mã phòng, vào là gặp nhau.</p>
+
+<fieldset>
+  <legend>Vào nhà</legend>
+  <input id="name" placeholder="Tên của bạn">
+  <button id="join">Vào nhà</button>
+  <span id="status">Chưa kết nối</span>
+  <div>Ngoại hình nhân vật 3D (gửi kèm lúc vào nhà):
+    da <select id="apSkin"><option value="sang">Sáng</option><option value="ngam">Ngăm</option></select>
+    tóc <select id="apHair"><option value="den">Đen</option><option value="nau">Nâu</option><option value="vang">Vàng</option></select>
+    áo <select id="apShirt"><option value="xanh">Xanh</option><option value="do">Đỏ</option><option value="trang">Trắng</option></select>
+    kiểu tóc <select id="apHairStyle"><option value="ngan">Ngắn</option><option value="dai">Dài</option><option value="bun">Búi</option></select>
+    phụ kiện <select id="apAccessory"><option value="khong">Không</option><option value="tai-meo">Tai mèo</option><option value="chuong">Chuông cổ</option></select>
+  </div>
+</fieldset>
+
+<fieldset>
+  <legend>Di chuyển 3D (test giao thức move)</legend>
+  <button data-move="0,-1">⬆ Tiến</button>
+  <button data-move="-1,0">⬅ Trái</button>
+  <button data-move="1,0">➡ Phải</button>
+  <button data-move="0,1">⬇ Lùi</button>
+  <button id="toggleSit">Ngồi / Đứng</button>
+  <span id="myPos">vị trí: (0, 0)</span>
+  <div style="color:#666">Mỗi lần bấm, client gửi <code>{type:"move", x, y, z, rotY, sitting}</code> — server kẹp biên biệt thự x∈[-18,18], z∈[-12,48], độ cao y∈[0,6.5] (client mẫu này đi mặt đất nên y luôn 0) rồi relay cho cả nhà.</div>
+</fieldset>
+
+<fieldset>
+  <legend>Tương tác với người chơi (action) + tín hiệu voice</legend>
+  <div>Chọn người:
+    <select id="targetUser"><option value="">— chưa có ai khác —</option></select>
+  </div>
+  <div>Động tác (gửi <code>{type:"action", kind, toId}</code> — cả nhà cùng thấy hoạt cảnh, không có sát thương/điểm):
+    <button data-action="punch">👊 Đấm</button>
+    <button data-action="kick">🦵 Đá</button>
+    <button data-action="wave">👋 Vẫy tay</button>
+    <button data-action="hug">🤗 Ôm</button>
+    <button data-action="highfive">✋ Đập tay</button>
+  </div>
+  <div><button id="sendVoiceSignal">📞 Gửi voice-signal thử tới người đã chọn</button>
+    <span style="color:#666">Kênh <code>voice-signal {toId, data}</code>: server chỉ chuyển tiếp tới đúng người nhận — client thật dùng <code>data</code> làm offer/answer/ICE của WebRTC để nói chuyện voice; client mẫu này chỉ gửi thử 1 gói ping và ghi nhật ký khi nhận được.</span>
+  </div>
+  <div id="actionLog" style="height:90px;overflow-y:auto;border:1px solid #ccc;padding:8px;margin-top:6px"></div>
+</fieldset>
+
+<fieldset>
+  <legend>Kênh đồng bộ mở (sync — tiền tố vl-)</legend>
+  <div><button id="sendSyncTest">🎧 Gửi sync <code>vl-dj</code> thử cho cả nhà</button>
+    <span style="color:#666">Kênh <code>sync {kind, data}</code>: kind tuỳ ý bắt đầu bằng <code>vl-</code> (vl-dj bàn DJ, vl-bar màn hình Sky Bar, vl-state, vl-slide…) — server broadcast nguyên trạng cho cả nhà trừ người gửi; kind sai tiền tố/quá dài hoặc data &gt;16KB bị từ chối. Client thật dùng kênh này cho DJ/quầy bar/slide; client mẫu chỉ gửi gói thử và ghi nhật ký ở khung "Tương tác" phía trên.</span>
+  </div>
+</fieldset>
+
+<fieldset>
+  <legend>Người trong nhà: <span id="count">0/30</span></legend>
+  <ul id="users"></ul>
+  <div>Chọn ghế sofa (bỏ chọn = bấm lại ghế đang ngồi):
+    <span id="seats"></span>
+  </div>
+</fieldset>
+
+<fieldset>
+  <legend>Màn hình chung (YouTube)</legend>
+  <input id="ytlink" size="52" placeholder="Dán link YouTube…">
+  <button id="setVideo">Chiếu cho cả nhà</button>
+  <button id="playBtn">▶ Phát</button>
+  <button id="pauseBtn">⏸ Dừng</button>
+  <div id="playerWrap" style="margin-top:8px"></div>
+  <div id="videoInfo" style="color:#666"></div>
+</fieldset>
+
+<fieldset>
+  <legend>Chat</legend>
+  <div id="chat"></div>
+  <input id="chatText" size="52" placeholder="Nhắn gì đó…">
+  <button id="sendChat">Gửi</button>
+</fieldset>
+
+<script src="https://www.youtube.com/iframe_api"></script>
+<script>
+let ws = null, myId = null, myName = '', player = null, playerReady = false;
+let applyingRemote = false; // chặn vòng lặp khi áp sự kiện video từ người khác
+let lastUsers = []; // danh sách người gần nhất (từ presence), tin move cập nhật thẳng vào đây
+let myPos = { x: 0, y: 0, z: 0, rotY: 0, sitting: false };
+const $ = (id) => document.getElementById(id);
+
+function myAppearance() {
+  return { skin: $('apSkin').value, hair: $('apHair').value, shirt: $('apShirt').value,
+           hairStyle: $('apHairStyle').value, accessory: $('apAccessory').value };
+}
+function fmtPos(p) { return p ? `(${p.x}, ${p.z}${p.y ? ', cao ' + p.y : ''}${p.sitting ? ', đang ngồi' : ''})` : ''; }
+function renderUsers() {
+  $('users').innerHTML = lastUsers.map(u =>
+    `<li class="${u.id === myId ? 'me' : ''}">${u.name}` +
+    (u.seatId ? ` <span class="seat">— ghế ${u.seatId}</span>` : '') +
+    ` <span class="seat">${fmtPos(u.pos)}</span></li>`).join('');
+}
+function sendMove() {
+  myPos.x = Math.max(-18, Math.min(18, myPos.x));
+  myPos.z = Math.max(-12, Math.min(48, myPos.z));
+  myPos.y = Math.max(0, Math.min(6.5, myPos.y || 0));
+  $('myPos').textContent = `vị trí: ${fmtPos(myPos)}`;
+  send({ type: 'move', x: myPos.x, y: myPos.y, z: myPos.z, rotY: myPos.rotY, sitting: myPos.sitting });
+}
+document.querySelectorAll('[data-move]').forEach(b => {
+  b.onclick = () => {
+    const [dx, dz] = b.dataset.move.split(',').map(Number);
+    myPos.x += dx; myPos.z += dz;
+    myPos.rotY = Math.atan2(dx, dz);
+    sendMove();
+  };
+});
+$('toggleSit').onclick = () => { myPos.sitting = !myPos.sitting; sendMove(); };
+
+// ---------- Tương tác (action) + voice-signal ----------
+function logAction(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  $('actionLog').appendChild(div); $('actionLog').scrollTop = 1e9;
+}
+function refreshTargets() {
+  const sel = $('targetUser');
+  const prev = sel.value;
+  const others = lastUsers.filter(u => u.id !== myId);
+  sel.innerHTML = others.length
+    ? others.map(u => `<option value="${u.id}">${u.name}</option>`).join('')
+    : '<option value="">— chưa có ai khác —</option>';
+  if (others.some(u => String(u.id) === prev)) sel.value = prev;
+}
+function pickedTarget() {
+  const v = $('targetUser').value;
+  return v ? Number(v) : null;
+}
+document.querySelectorAll('[data-action]').forEach(b => {
+  b.onclick = () => {
+    const toId = pickedTarget();
+    if (toId == null) return alert('Chưa chọn người để tương tác');
+    send({ type: 'action', kind: b.dataset.action, toId });
+  };
+});
+$('sendSyncTest').onclick = () => {
+  send({ type: 'sync', kind: 'vl-dj', data: { action: 'ping', note: 'test tu client mau', ts: Date.now() } });
+  logAction('🎧 Đã gửi sync vl-dj thử cho cả nhà');
+};
+$('sendVoiceSignal').onclick = () => {
+  const toId = pickedTarget();
+  if (toId == null) return alert('Chưa chọn người nhận voice-signal');
+  // Gói thử — client thật thay data bằng {sdp:...} (offer/answer) hoặc {candidate:...} (ICE)
+  send({ type: 'voice-signal', toId, data: { kind: 'ping', note: 'test tu client mau', ts: Date.now() } });
+  logAction(`📞 Đã gửi voice-signal thử tới #${toId}`);
+};
+
+// ---------- Ghế sofa mẫu: 10 ghế ----------
+for (let i = 1; i <= 10; i++) {
+  const b = document.createElement('button');
+  b.className = 'seat-btn'; b.textContent = '🛋 ' + i; b.dataset.seat = 'sofa-' + i;
+  b.onclick = () => send({ type: 'seat', seatId: window._mySeat === b.dataset.seat ? null : b.dataset.seat });
+  $('seats').appendChild(b);
+}
+
+function extractVideoId(url) {
+  const m = String(url).match(/(?:youtu\.be\/|[?&]v=|shorts\/|embed\/)([\w-]{6,})/);
+  return m ? m[1] : (/^[\w-]{6,}$/.test(url.trim()) ? url.trim() : null);
+}
+function loadPlayer(videoId, start) {
+  $('playerWrap').innerHTML = '<div id="ytplayer"></div>';
+  playerReady = false;
+  player = new YT.Player('ytplayer', {
+    width: 640, height: 360, videoId,
+    playerVars: { start: Math.floor(start || 0) },
+    events: { onReady: () => { playerReady = true; } }
+  });
+}
+function applyVideo(msg) {
+  applyingRemote = true;
+  $('videoInfo').textContent = msg.videoId
+    ? `Đang đồng bộ: ${msg.videoId} — do ${msg.by} đặt` : '';
+  if (msg.videoId) {
+    if (!player || !playerReady) loadPlayer(msg.videoId, msg.currentTime);
+    else {
+      const cur = (player.getVideoData && player.getVideoData().video_id) || '';
+      if (cur !== msg.videoId) player.loadVideoById(msg.videoId, msg.currentTime || 0);
+      else if (Math.abs((player.getCurrentTime() || 0) - (msg.currentTime || 0)) > 2)
+        player.seekTo(msg.currentTime || 0, true);
+      if (msg.playing) player.playVideo(); else player.pauseVideo();
+    }
+  }
+  setTimeout(() => { applyingRemote = false; }, 1200);
+}
+function currentVideoState(playing) {
+  if (!player || !playerReady) return null;
+  const d = player.getVideoData ? player.getVideoData() : {};
+  return { type: 'video', videoId: d.video_id || null, playing,
+           currentTime: player.getCurrentTime ? player.getCurrentTime() : 0, by: myName };
+}
+
+function send(obj) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(obj)); }
+
+$('join').onclick = () => {
+  myName = $('name').value.trim() || 'Khách';
+  if (ws) ws.close();
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  ws = new WebSocket(`${proto}//${location.host}`);
+  ws.onopen = () => send({ type: 'join', name: myName, appearance: myAppearance() }); // chỉ 1 nhà chung — không gửi mã phòng
+  ws.onmessage = (ev) => {
+    const msg = JSON.parse(ev.data);
+    if (msg.type === 'joined') {
+      myId = msg.id;
+      $('status').textContent = `Đã vào ${msg.house || 'Nhà Làng Mèo'} (phòng chung duy nhất) — bạn là ${msg.name} (#${msg.id})`;
+    } else if (msg.type === 'presence') {
+      $('count').textContent = `${msg.count}/${msg.cap}`;
+      lastUsers = msg.users;
+      window._mySeat = (msg.users.find(u => u.id === myId) || {}).seatId || null;
+      renderUsers();
+      refreshTargets();
+    } else if (msg.type === 'action') {
+      const names = { punch: 'đấm 👊', kick: 'đá 🦵', wave: 'vẫy tay 👋', hug: 'ôm 🤗', highfive: 'đập tay ✋' };
+      logAction(`${msg.fromName} ${names[msg.kind] || msg.kind} ${msg.toName || ('#' + msg.toId)}`);
+    } else if (msg.type === 'voice-signal') {
+      // Client thật: dùng msg.data làm offer/answer/ICE cho RTCPeerConnection của msg.fromId.
+      // Client mẫu chỉ ghi nhật ký để thấy tín hiệu đến đúng mình.
+      logAction(`📞 Nhận voice-signal từ ${msg.fromName || ('#' + msg.fromId)}: ${JSON.stringify(msg.data)}`);
+    } else if (msg.type === 'move') {
+      const u = lastUsers.find(x => x.id === msg.userId);
+      if (u) { u.pos = { x: msg.x, y: msg.y || 0, z: msg.z, rotY: msg.rotY, sitting: msg.sitting }; renderUsers(); }
+    } else if (msg.type === 'sync') {
+      // Kênh đồng bộ mở: client thật rẽ theo msg.kind (vl-dj, vl-bar, vl-state…).
+      logAction(`🔄 sync [${msg.kind}] từ ${msg.fromName || ('#' + msg.fromId)}: ${JSON.stringify(msg.data)}`);
+    } else if (msg.type === 'video') {
+      applyVideo(msg);
+    } else if (msg.type === 'chat') {
+      const div = document.createElement('div');
+      div.textContent = `${msg.from}: ${msg.text}`;
+      $('chat').appendChild(div); $('chat').scrollTop = 1e9;
+    } else if (msg.type === 'game') {
+      console.log('[game relay]', msg.from, msg.payload); // client game thật xử lý ở đây
+    } else if (msg.type === 'error') {
+      alert(msg.message || msg.code);
+      if (msg.code === 'ROOM_FULL') $('status').textContent = 'Nhà đã đầy — bị từ chối.';
+    }
+  };
+  ws.onclose = () => { $('status').textContent = 'Mất kết nối'; };
+};
+
+$('setVideo').onclick = () => {
+  const id = extractVideoId($('ytlink').value);
+  if (!id) return alert('Link YouTube không hợp lệ');
+  loadPlayer(id, 0);
+  send({ type: 'video', videoId: id, playing: true, currentTime: 0, by: myName });
+};
+$('playBtn').onclick = () => { if (player && playerReady) { player.playVideo(); const s = currentVideoState(true); if (s) send(s); } };
+$('pauseBtn').onclick = () => { if (player && playerReady) { player.pauseVideo(); const s = currentVideoState(false); if (s) send(s); } };
+$('sendChat').onclick = () => {
+  const t = $('chatText').value.trim(); if (!t) return;
+  send({ type: 'chat', text: t }); $('chatText').value = '';
+};
+</script>
+</body>
+</html>

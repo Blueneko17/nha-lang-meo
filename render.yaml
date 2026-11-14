@@ -1,0 +1,14 @@
+# Blueprint deploy lên Render — xem README.md để biết từng bước.
+services:
+  - type: web
+    name: nha-xem-phim-online
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /healthz
+    envVars:
+      # Render tự cấp PORT, không cần khai báo.
+      # Giới hạn người trong nhà chung duy nhất — mặc định trong code là 30, chỉ khai khi muốn đổi:
+      - key: ROOM_CAP
+        value: "30"
