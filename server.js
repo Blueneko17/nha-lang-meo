@@ -31,11 +31,11 @@ const HOUSE_NAME = 'Nhà Làng Mèo';
 const MAX_NAME = 40;
 const MAX_CHAT = 500;
 // Biên khu đất Biệt thự Làng Mèo (client đã mở rộng: nhà chính + sân lửa trại +
-// vườn + hồ bơi + dãy phòng + sân thượng Sky Bar): x ∈ [-26, 26], z ∈ [-18, 66]
+// bản đồ phức hợp mở rộng (khu game riêng, công viên, khu họp): x ∈ [-45, 45], z ∈ [-30, 120]
 // (z MIN/MAX lệch nhau vì vườn kéo dài về phía sau nhà), vượt biên là bị kẹp.
-const BOUND_X = 26;
-const BOUND_Z_MIN = -18;
-const BOUND_Z_MAX = 66;
+const BOUND_X = 45;
+const BOUND_Z_MIN = -30;
+const BOUND_Z_MAX = 120;
 // Độ cao nhân vật (tầng lửng ~3.2, sân thượng Sky Bar 4.0, chóp cầu tụt ~5.2): y ∈ [0, 6.5]
 const BOUND_Y_MAX = 6.5;
 // Kênh đồng bộ mở `sync`: kind phải bắt đầu bằng tiền tố này, tối đa 40 ký tự,
