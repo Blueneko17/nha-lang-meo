@@ -35,7 +35,7 @@ const MAX_CHAT = 500;
 // (bản ghép khu v2): x ∈ [-58, 58], z ∈ [-30, 248]
 // (z MIN/MAX lệch nhau vì vườn và khu mới kéo dài về phía sau nhà), vượt biên là bị kẹp.
 const BOUND_X = 58;
-const BOUND_Z_MIN = -30;
+const BOUND_Z_MIN = -65;
 const BOUND_Z_MAX = 248;
 // Độ cao nhân vật (tầng lửng ~3.2, sân thượng Sky Bar 4.0, chóp cầu tụt ~5.2): y ∈ [0, 6.5]
 const BOUND_Y_MAX = 6.5;
